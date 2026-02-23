@@ -8,6 +8,8 @@ import moon720 from "./assets/moon.720.jpg";
 
 import audioMoon from "./assets/one.mp3";
 import audioReality from "./assets/two.mp3";
+
+// ⭐ STARS COMPONENT
 function Stars() {
   const stars = Array.from({ length: 200 });
 
@@ -41,9 +43,11 @@ function App() {
 
   const [stream, setStream] = useState(null);
 
+  const [currentAudio, setCurrentAudio] = useState("moon");
+
   const videoRef = useRef(null);
 
-  const audioRef = useRef(null); // ⭐ NEW
+  const audioRef = useRef(null);
 
   const moonMap = {
     144: moon144,
@@ -52,7 +56,7 @@ function App() {
     720: moon720,
   };
 
-  // CAMERA PERMISSION
+  // ⭐ CAMERA PERMISSION ON LOAD
   useEffect(() => {
     navigator.mediaDevices
       .getUserMedia({ video: true })
@@ -68,51 +72,79 @@ function App() {
       });
   }, []);
 
-  // ATTACH STREAM TO VIDEO
+  // ⭐ ATTACH CAMERA STREAM
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
     }
   }, [stream, resolution]);
 
-  // ⭐ NEW: AUDIO SWITCHING
-  // ⭐ FIXED AUDIO LOGIC
+  // ⭐ START MOON AUDIO ON LOAD
   useEffect(() => {
     if (!audioRef.current) return;
 
-    const currentSrc = audioRef.current.src;
+    audioRef.current.src = audioMoon;
 
-    // if entering reality mode
-    if (resolution === "1080") {
-      if (!currentSrc.includes("two.mp3")) {
-        audioRef.current.src = audioReality;
+    audioRef.current.play().catch(() => {});
 
-        audioRef.current.play().catch(() => {});
-      }
+    setCurrentAudio("moon");
+  }, []);
+
+  // ⭐ SWITCH AUDIO ONLY WHEN NEEDED
+  useEffect(() => {
+    if (!audioRef.current) return;
+
+    if (resolution === "1080" && currentAudio !== "reality") {
+      audioRef.current.src = audioReality;
+
+      audioRef.current.play().catch(() => {});
+
+      setCurrentAudio("reality");
+    } else if (resolution !== "1080" && currentAudio !== "moon") {
+      audioRef.current.src = audioMoon;
+
+      audioRef.current.play().catch(() => {});
+
+      setCurrentAudio("moon");
     }
+  }, [resolution, currentAudio]);
+  // ⭐ UNLOCK AUDIO ON FIRST USER INTERACTION
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (!audioRef.current) return;
 
-    // if leaving reality mode
-    else {
-      if (!currentSrc.includes("one.mp3")) {
-        audioRef.current.src = audioMoon;
+      audioRef.current.src = audioMoon;
 
-        audioRef.current.play().catch(() => {});
-      }
-    }
-  }, [resolution]);
-  // PERMISSION BLOCK
+      audioRef.current.play().catch(() => {});
+
+      setCurrentAudio("moon");
+
+      // remove listener after first use
+      document.removeEventListener("click", unlockAudio);
+    };
+
+    document.addEventListener("click", unlockAudio);
+
+    return () => {
+      document.removeEventListener("click", unlockAudio);
+    };
+  }, []);
+
+  // ⭐ BLOCK UNTIL PERMISSION
   if (!hasPermission) {
     return (
-      <div className="fixed top-0 left-0 w-screen h-screen bg-black flex justify-center items-center text-white text-2xl">
-        Grant Camera Permission
+      <div className="fixed inset-0 bg-black flex justify-center items-center text-white text-2xl">
+        Grant Permission
       </div>
     );
   }
 
   return (
-    <div className="fixed top-0 left-0 w-screen h-screen bg-black flex flex-col justify-center items-center gap-6">
-      {/* VIDEO OR IMAGE */}
+    <div className="fixed inset-0 bg-black flex flex-col justify-center items-center gap-6 overflow-hidden">
       <Stars />
+
+      {/* VIDEO OR IMAGE */}
+
       <div className="bg-black w-[40vw] h-[50vh] flex justify-center items-center z-10">
         {resolution === "1080" ? (
           <video
@@ -135,7 +167,7 @@ function App() {
       <select
         value={resolution}
         onChange={(e) => setResolution(e.target.value)}
-        className="bg-gray-50 border border-gray-300 text-sm rounded-lg p-2.5 z-10"
+        className="bg-gray-100 border border-gray-300 text-sm rounded-lg p-2.5 z-10"
       >
         <option value="144">144p</option>
         <option value="240">240p</option>
@@ -144,7 +176,7 @@ function App() {
         <option value="1080">1080p</option>
       </select>
 
-      {/* ⭐ NEW: AUDIO ELEMENT */}
+      {/* AUDIO */}
 
       <audio ref={audioRef} loop />
     </div>
